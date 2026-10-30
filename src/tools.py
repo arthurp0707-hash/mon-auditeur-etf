@@ -78,3 +78,20 @@ def get_price(ticker: str, date: str) -> float:
         return float(df.loc[date, "Close"])
     except KeyError:
         raise ValueError(f"Pas de cotation pour {ticker} le {date}")
+
+
+def classer_etfs(tickers, metric="rendement_annualise"):
+    """
+    Classe plusieurs ETF selon une metrique. Retourne une liste triee
+    [(ticker, valeur), ...] du meilleur au moins bon.
+    C'est ce qui permet de repondre a "quel est le meilleur ETF monde ?".
+    """
+    resultats = []
+    for t in tickers:
+        try:
+            v = compute_metric(t, metric)
+            resultats.append((t, v))
+        except Exception:
+            continue
+    resultats.sort(key=lambda x: x[1], reverse=True)
+    return resultats

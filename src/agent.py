@@ -4,7 +4,7 @@ Agent MonAuditeur ETF (assemblage des briques).
 Pipeline pour chaque question :
   1. charge le profil investisseur (brique 5)
   2. choisit un outil : heuristique de code d'abord, LLM en secours (brique 1)
-  3. execute l'outil -> chiffre trace
+  3. execute l'outil -> chiffre(s) trace(s)
   4. demande au LLM de rediger une reponse a partir de ce chiffre
   5. la barriere verifie que tous les chiffres cites sont traces (brique 3)
   6. retourne {question, reponse, chiffres, verdict, trace}
@@ -17,7 +17,7 @@ import requests
 from src.barrier import verifier_reponse
 from src.config import OLLAMA_MODEL, OLLAMA_NUM_CTX, OLLAMA_URL
 from src.memoire import charger_profil
-from src.tools import compute_metric
+from src.tools import compute_metric, classer_etfs
 from src.resolver import resoudre_ticker
 
 NUM_RE = re.compile(r"[-+]?\d+(?:[.,]\d+)?")
@@ -44,12 +44,13 @@ def _choisir_outil(question):
 
     1. Resoudre le ticker (QQQ, SPY, IWDA.AS, CW8.PA... meme mal ecrit).
     2. Detecter la metrique dans la question.
-    3. Si ticker + metrique -> compute_metric (heuristique).
+    3. Cas special "meilleur ETF monde" -> classement.
+    4. Si ticker + metrique -> compute_metric (heuristique).
     Sinon -> demander au LLM (peu fiable sur un 4B, mais on garde la trace).
     """
     q = question.lower()
 
-    # 1. Ticker : d'abord les cas connus en dur (rapide), puis resoudre_ticker
+    # 1. Ticker : cas connus en dur, puis resoudre_ticker
     ticker = None
     for t in ("qqq", "spy"):
         if t in q:
@@ -60,13 +61,12 @@ def _choisir_outil(question):
         if t_resolu:
             ticker = t_resolu
 
-    # 2. Metrique : mots-cles + pourcentage explicite
+    # 2. Metrique
     metric = None
     if any(w in q for w in ("rendement", "performance", "cagr", "annualise",
                             "fait +", "fait -", "a fait", "gagne", "perdu")):
         metric = "rendement_annualise"
     elif "rendem" in q or "rendemen" in q:
-        # Gere les fautes de frappe courantes ("rendemen", "rendement"...)
         metric = "rendement_annualise"
     elif any(w in q for w in ("volatil", "risque", "variation")):
         metric = "volatilite"
@@ -75,12 +75,19 @@ def _choisir_outil(question):
     if metric is None and "%" in q:
         metric = "rendement_annualise"
 
-    # 3. Si on a les deux -> heuristique
+    # 3. Cas special : "meilleur ETF monde" -> classement
+    if "meilleur" in q and ("etf" in q or "monde" in q):
+        return {"outil": "classer_etfs",
+                "tickers": ["IWDA.AS", "CW8.PA"],
+                "metric": metric or "rendement_annualise",
+                "source": "heuristique"}
+
+    # 4. Ticker + metrique -> compute_metric
     if ticker and metric:
         return {"outil": "compute_metric", "ticker": ticker, "metric": metric,
                 "source": "heuristique"}
 
-    # 4. Secours : LLM, mais on ne depend pas de lui
+    # 5. Secours : LLM
     prompt = (
         "Tu es un agent qui ne calcule jamais. Choisis UN outil parmi : "
         "compute_metric(ticker, metric) avec metric parmi "
@@ -105,6 +112,17 @@ def _choisir_outil(question):
         return {"outil": "aucun", "raison": "JSON invalide"}
 
 
+def _extraire_pourcentage(texte):
+    """Extrait un pourcentage explicite (ex: '+45%' -> 45.0)."""
+    m = re.search(r"([-+]?\d+(?:[.,]\d+)?)\s*%", texte)
+    if not m:
+        return None
+    try:
+        return float(m.group(1).replace(",", "."))
+    except ValueError:
+        return None
+
+
 def _rediger(question, chiffre, metric, ticker):
     """Demande au LLM de rediger une phrase qui cite UNIQUEMENT ce chiffre."""
     prompt = (
@@ -114,17 +132,6 @@ def _rediger(question, chiffre, metric, ticker):
         + "Question : " + question
     )
     return _ask(prompt)
-
-
-def _extraire_pourcentage(texte):
-    """Extrait un pourcentage explicite de la question (ex: '+45%' -> 45.0)."""
-    m = re.search(r"([-+]?\d+(?:[.,]\d+)?)\s*%", texte)
-    if not m:
-        return None
-    try:
-        return float(m.group(1).replace(",", "."))
-    except ValueError:
-        return None
 
 
 def repondre(question):
@@ -137,6 +144,32 @@ def repondre(question):
     choix = _choisir_outil(question)
     trace.append("choix LLM: %s" % choix)
 
+    # --- Cas classement ---
+    if choix.get("outil") == "classer_etfs":
+        try:
+            classement = classer_etfs(choix["tickers"], choix["metric"])
+            trace.append("outil classer_etfs: %s" % classement)
+        except Exception as e:
+            trace.append("classer_etfs en erreur: %s" % e)
+            return {"question": question,
+                    "reponse": "Impossible de classer: %s" % e,
+                    "chiffres": [], "verdict": False, "trace": trace}
+        if not classement:
+            return {"question": question,
+                    "reponse": "Aucun ETF n'a pu etre evalue.",
+                    "chiffres": [], "verdict": False, "trace": trace}
+        best_t, best_v = classement[0]
+        reponse_finale = (
+            "Le meilleur est %s avec %.2f%% de rendement annualise sur 5 ans."
+            % (best_t, best_v)
+        )
+        verdict = verifier_reponse(reponse_finale, [v for _, v in classement])
+        trace.append("barriere: ok=%s raison=%s" % (verdict.ok, verdict.raison))
+        return {"question": question, "reponse": reponse_finale,
+                "chiffres": [v for _, v in classement],
+                "verdict": verdict.ok, "trace": trace}
+
+    # --- Cas pas d'outil ---
     if choix.get("outil") != "compute_metric":
         reponse = "Je ne peux pas conclure sans calcul sur les donnees."
         verdict = verifier_reponse(reponse, [])
@@ -144,6 +177,7 @@ def repondre(question):
         return {"question": question, "reponse": reponse, "chiffres": [],
                 "verdict": verdict.ok, "trace": trace}
 
+    # --- Cas compute_metric ---
     ticker = choix.get("ticker", "QQQ")
     metric = choix.get("metric", "rendement_annualise")
 
@@ -157,8 +191,7 @@ def repondre(question):
                 "reponse": "Impossible de calculer: %s" % e,
                 "chiffres": [], "verdict": False, "trace": trace}
 
-    # Si la question propose un pourcentage a verifier (ex: "+45%"),
-    # on construit la comparaison en CODE, pas par le LLM (plus fiable).
+    # Comparaison en code si un pourcentage est propose
     pct_propose = _extraire_pourcentage(question)
     if pct_propose is not None:
         ecart = abs(chiffre - pct_propose)
@@ -179,6 +212,7 @@ def repondre(question):
         return {"question": question, "reponse": reponse_finale,
                 "chiffres": [chiffre], "verdict": verdict.ok, "trace": trace}
 
+    # Sinon, redaction par le LLM
     reponse_llm = _rediger(question, chiffre, metric, ticker)
     trace.append("redaction LLM: %s" % reponse_llm[:150])
 
