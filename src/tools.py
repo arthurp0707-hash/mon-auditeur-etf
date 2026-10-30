@@ -17,12 +17,29 @@ TRADING_DAYS = 252
 
 
 def _load(ticker: str) -> pd.DataFrame:
-    """Charge le CSV en cache pour un ticker. Erreur claire si absent."""
+    """
+    Charge le CSV en cache pour un ticker.
+    Si le cache est absent, tente un telechargement a la volee (cache
+    dynamique), puis relit. Erreur claire si le telechargement echoue.
+    """
     path = CACHE_DIR / f"{ticker}_5y_1d.csv"
     if not path.exists():
-        raise FileNotFoundError(
-            f"Cache absent pour {ticker}. Lance: python data/download.py {ticker}"
-        )
+        try:
+            import yfinance as yf
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            df = yf.download(ticker, period="5y", interval="1d",
+                             auto_adjust=True, progress=False)
+            if df is None or df.empty:
+                raise RuntimeError(f"aucune donnee pour {ticker}")
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            df.index.name = "Date"
+            df.to_csv(path)
+        except Exception as e:
+            raise FileNotFoundError(
+                f"Cache absent pour {ticker} et telechargement impossible ({e}). "
+                f"Lance: python data/download.py {ticker}"
+            )
     df = pd.read_csv(path, index_col="Date", parse_dates=True)
     return df.sort_index()
 

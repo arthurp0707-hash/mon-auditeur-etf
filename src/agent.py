@@ -18,6 +18,7 @@ from src.barrier import verifier_reponse
 from src.config import OLLAMA_MODEL, OLLAMA_NUM_CTX, OLLAMA_URL
 from src.memoire import charger_profil
 from src.tools import compute_metric
+from src.resolver import resoudre_ticker
 
 NUM_RE = re.compile(r"[-+]?\d+(?:[.,]\d+)?")
 
@@ -41,40 +42,51 @@ def _choisir_outil(question):
     """
     Choisit l'outil. Regle de code d'abord, LLM en secours.
 
-    Heuristique (fiable, deterministe) :
-      - si la question mentionne QQQ ou SPY ET un mot-cle de metrique,
-        on appelle compute_metric avec la metrique correspondante.
-    Sinon, on demande au LLM (peu fiable sur un 4B, mais on garde la trace).
+    1. Resoudre le ticker (QQQ, SPY, IWDA.AS, CW8.PA... meme mal ecrit).
+    2. Detecter la metrique dans la question.
+    3. Si ticker + metrique -> compute_metric (heuristique).
+    Sinon -> demander au LLM (peu fiable sur un 4B, mais on garde la trace).
     """
     q = question.lower()
+
+    # 1. Ticker : d'abord les cas connus en dur (rapide), puis resoudre_ticker
     ticker = None
     for t in ("qqq", "spy"):
         if t in q:
             ticker = t.upper()
             break
+    if ticker is None:
+        t_resolu, _ = resoudre_ticker(question)
+        if t_resolu:
+            ticker = t_resolu
 
+    # 2. Metrique : mots-cles + pourcentage explicite
     metric = None
     if any(w in q for w in ("rendement", "performance", "cagr", "annualise",
                             "fait +", "fait -", "a fait", "gagne", "perdu")):
+        metric = "rendement_annualise"
+    elif "rendem" in q or "rendemen" in q:
+        # Gere les fautes de frappe courantes ("rendemen", "rendement"...)
         metric = "rendement_annualise"
     elif any(w in q for w in ("volatil", "risque", "variation")):
         metric = "volatilite"
     elif any(w in q for w in ("prix", "cours", "cloture", "dernier")):
         metric = "prix_dernier"
-    # Si la question contient un pourcentage explicite, c'est un rendement
     if metric is None and "%" in q:
         metric = "rendement_annualise"
 
+    # 3. Si on a les deux -> heuristique
     if ticker and metric:
         return {"outil": "compute_metric", "ticker": ticker, "metric": metric,
                 "source": "heuristique"}
 
+    # 4. Secours : LLM, mais on ne depend pas de lui
     prompt = (
         "Tu es un agent qui ne calcule jamais. Choisis UN outil parmi : "
         "compute_metric(ticker, metric) avec metric parmi "
         "rendement_annualise, volatilite, prix_dernier ; "
         "ou aucun si la question n'est pas calculable. "
-        "Tickers disponibles : QQQ, SPY. "
+        "Tickers disponibles : QQQ, SPY, IWDA.AS, CW8.PA. "
         "Question : " + question + " "
         "Reponds UNIQUEMENT par un JSON."
     )
@@ -84,7 +96,6 @@ def _choisir_outil(question):
         return {"outil": "aucun", "raison": "heuristique et LLM muets"}
     try:
         choix = json.loads(m.group(0))
-        # Normalisation : le 4B invente parfois des cles (outil_selectionne, tool...)
         if "outil" not in choix:
             choix = {"outil": "aucun", "raison": "cle 'outil' absente",
                      "brut": choix}
