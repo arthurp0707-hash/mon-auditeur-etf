@@ -41,7 +41,7 @@ def resoudre_ticker(texte):
 
     # 1. Priorite aux tickers explicites (cw8, iwda, swda, qqq, spy),
     #    car "Amundi MSCI World" contient "msci world" mais doit donner CW8.
-    tickers_explicites = ["cw8", "iwda", "swda", "qqq", "spy"]
+    tickers_explicites = ["cw8", "iwda", "swda", "qqq", "spy", "amundi"]
     for t in tickers_explicites:
         if t in bas:
             return _CORRESPONDANCES[t]
