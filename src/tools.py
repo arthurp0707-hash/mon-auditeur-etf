@@ -97,5 +97,28 @@ def classer_etfs(tickers, metric="rendement_annualise", annees=None):
             resultats.append((t, v))
         except Exception:
             continue
-    resultats.sort(key=lambda x: x[1], reverse=True)
+    # Pour la volatilite, "meilleur" = le MOINS volatil (tri croissant).
+    # Pour les autres metriques, "meilleur" = le plus grand (tri decroissant).
+    inverse = (metric != "volatilite")
+    resultats.sort(key=lambda x: x[1], reverse=inverse)
+    return resultats
+
+
+def meilleur_secteur(annees=None):
+    """
+    Classe les 11 secteurs Yahoo par rendement de leur meilleur ETF.
+    Retourne [(secteur, ticker, valeur), ...] du meilleur au moins bon.
+    """
+    from src.resolver import top_etfs_secteur, _SECTEURS_YAHOO
+    secteurs_uniques = set(_SECTEURS_YAHOO.values())
+    resultats = []
+    for secteur in secteurs_uniques:
+        tickers = top_etfs_secteur(secteur)
+        if not tickers:
+            continue
+        classement = classer_etfs(tickers, "rendement_annualise", annees=annees)
+        if classement:
+            best_t, best_v = classement[0]
+            resultats.append((secteur, best_t, best_v))
+    resultats.sort(key=lambda x: x[2], reverse=True)
     return resultats

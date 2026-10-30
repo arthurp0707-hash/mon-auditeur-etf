@@ -17,7 +17,7 @@ import requests
 from src.barrier import verifier_reponse
 from src.config import OLLAMA_MODEL, OLLAMA_NUM_CTX, OLLAMA_URL
 from src.memoire import charger_profil
-from src.tools import compute_metric, classer_etfs
+from src.tools import compute_metric, classer_etfs, meilleur_secteur
 from src.resolver import (
     resoudre_ticker, resoudre_theme, resoudre_secteur, top_etfs_secteur,
 )
@@ -77,10 +77,18 @@ def _choisir_outil(question):
     if metric is None and "%" in q:
         metric = "rendement_annualise"
 
-    # 3. Cas special : "meilleur / top N ETF" -> classement
-    if ("meilleur" in q or "top " in q) and "etf" in q:
+    # 3. Cas speciaux : classement, secteur, panier
+    intention_classement = (
+        "meilleur" in q or "top " in q or "performant" in q
+        or "performe" in q or "quel etf" in q or "quelle etf" in q
+    )
+    if intention_classement and ("etf" in q or "investir" in q):
         annees = _extraire_annees(q)
-        # 3a. Secteur Yahoo ? (tech, energie, sante...)
+        # 3a. Question sur le SECTEUR (pas le ticker)
+        if "secteur" in q:
+            return {"outil": "meilleur_secteur", "annees": annees,
+                    "source": "heuristique-secteur-global"}
+        # 3b. Secteur Yahoo ? (tech, energie, sante...)
         secteur = resoudre_secteur(q)
         if secteur:
             tickers = top_etfs_secteur(secteur)
@@ -89,23 +97,27 @@ def _choisir_outil(question):
                         "tickers": tickers,
                         "metric": metric or "rendement_annualise",
                         "annees": annees,
+                        "top_n": _extraire_top_n(q),
                         "source": "heuristique-secteur",
                         "secteur": secteur}
-        # 3b. Theme specifique ? (chine, petrole, semi...)
+        # 3c. Theme specifique ? (chine, petrole, semi...)
         tickers_theme = resoudre_theme(q)
         if tickers_theme:
             return {"outil": "classer_etfs",
                     "tickers": tickers_theme,
                     "metric": metric or "rendement_annualise",
                     "annees": annees,
+                    "top_n": _extraire_top_n(q),
                     "source": "heuristique-theme"}
-        # 3c. Pas de theme -> panier par defaut de grands ETF
-        panier_defaut = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT"]
+        # 3d. Pas de theme -> panier par defaut
+        panier_defaut = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT", "XLE", "XLV", "XLF", "XLI", "XLY", "XLU", "XLRE"]
         return {"outil": "classer_etfs",
                 "tickers": panier_defaut,
                 "metric": metric or "rendement_annualise",
                 "annees": annees,
+                "top_n": _extraire_top_n(q),
                 "source": "heuristique-panier"}
+
 
     # 4. Ticker + metrique -> compute_metric
     if ticker and metric:
@@ -137,9 +149,23 @@ def _choisir_outil(question):
         return {"outil": "aucun", "raison": "JSON invalide"}
 
 
+def _extraire_top_n(texte):
+    """Extrait N de 'top N' (defaut: 5)."""
+    m = re.search(r"top\s*(\d+)", texte.lower())
+    if m:
+        try:
+            return int(m.group(1))
+        except ValueError:
+            pass
+    return 5
+
+
 def _extraire_annees(texte):
-    """Extrait une periode en annees d'un texte (ex: '3 ans' -> 3)."""
-    m = re.search(r"(\d+)\s*(?:ans?|annees?|derniere?s?\s+annees?)", texte.lower())
+    """Extrait une periode en annees (ex: '3 ans', '2 dernieres annees')."""
+    t = texte.lower()
+    m = re.search(r"(\d+)\s*(?:ans?|annees?)", t)
+    if not m:
+        m = re.search(r"(\d+)\s*(?:derniere?s?|derniers?)", t)
     if not m:
         return None
     try:
@@ -198,17 +224,56 @@ def repondre(question):
             return {"question": question,
                     "reponse": "Aucun ETF n'a pu etre evalue.",
                     "chiffres": [], "verdict": False, "trace": trace}
+        # Limiter a top_n si demande
+        top_n = choix.get("top_n")
+        if top_n and top_n < len(classement):
+            classement = classement[:top_n]
+            trace.append("limite a top %d" % top_n)
         best_t, best_v = classement[0]
         period = choix.get("annees")
         suffix = ("sur %d ans" % period) if period else "sur 5 ans"
-        reponse_finale = (
-            "Le meilleur est %s avec %.2f%% de rendement annualise %s."
-            % (best_t, best_v, suffix)
-        )
+        metric_choisie = choix.get("metric", "rendement_annualise")
+        if metric_choisie == "volatilite":
+            reponse_finale = (
+                "Le moins volatil est %s avec %.2f%% de volatilite %s."
+                % (best_t, best_v, suffix)
+            )
+        else:
+            reponse_finale = (
+                "Le meilleur est %s avec %.2f%% de rendement annualise %s."
+                % (best_t, best_v, suffix)
+            )
         verdict = verifier_reponse(reponse_finale, [v for _, v in classement])
         trace.append("barriere: ok=%s raison=%s" % (verdict.ok, verdict.raison))
         return {"question": question, "reponse": reponse_finale,
                 "chiffres": [v for _, v in classement],
+                "verdict": verdict.ok, "trace": trace}
+
+    # --- Cas meilleur_secteur ---
+    if choix.get("outil") == "meilleur_secteur":
+        try:
+            classement = meilleur_secteur(annees=choix.get("annees"))
+            trace.append("outil meilleur_secteur: %s" % classement[:3])
+        except Exception as e:
+            trace.append("meilleur_secteur en erreur: %s" % e)
+            return {"question": question,
+                    "reponse": "Impossible de classer les secteurs: %s" % e,
+                    "chiffres": [], "verdict": False, "trace": trace}
+        if not classement:
+            return {"question": question,
+                    "reponse": "Aucun secteur n'a pu etre evalue.",
+                    "chiffres": [], "verdict": False, "trace": trace}
+        best_s, best_t, best_v = classement[0]
+        period = choix.get("annees")
+        suffix = ("sur %d ans" % period) if period else "sur 5 ans"
+        reponse_finale = (
+            "Le meilleur secteur est %s (via %s) avec %.2f%% de rendement %s."
+            % (best_s, best_t, best_v, suffix)
+        )
+        verdict = verifier_reponse(reponse_finale, [v for _, _, v in classement])
+        trace.append("barriere: ok=%s raison=%s" % (verdict.ok, verdict.raison))
+        return {"question": question, "reponse": reponse_finale,
+                "chiffres": [v for _, _, v in classement],
                 "verdict": verdict.ok, "trace": trace}
 
     # --- Cas pas d'outil ---
