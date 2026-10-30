@@ -1,9 +1,9 @@
 """
 Outils appelables par le LLM (brique 1).
 
-Chaque fonction est un outil : elle lit le cache CSV et renvoie un résultat
-chiffré. Le LLM ne calcule rien lui-même ; il demande à un outil, et la
-barrière (brique 3) vérifie ensuite que les chiffres de la réponse viennent
+Chaque fonction est un outil : elle lit le cache CSV et renvoie un resultat
+chiffre. Le LLM ne calcule rien lui-meme ; il demande a un outil, et la
+barriere (brique 3) verifie ensuite que les chiffres de la reponse viennent
 d'ici.
 """
 from pathlib import Path
@@ -16,7 +16,7 @@ from src.config import CACHE_DIR
 TRADING_DAYS = 252
 
 
-def _load(ticker: str) -> pd.DataFrame:
+def _load(ticker):
     """
     Charge le CSV en cache pour un ticker.
     Si le cache est absent, tente un telechargement a la volee (cache
@@ -44,35 +44,40 @@ def _load(ticker: str) -> pd.DataFrame:
     return df.sort_index()
 
 
-def compute_metric(ticker: str, metric: str) -> float:
+def compute_metric(ticker, metric, annees=None):
     """
-    Calcule une métrique sur l'historique complet du ticker.
+    Calcule une metrique sur l'historique du ticker.
 
     metric : "rendement_annualise" | "volatilite" | "prix_dernier"
-    Retourne un float. C'est CETTE valeur qui pourra apparaître dans la réponse.
+    annees : si fourni, ne garde que les N dernieres annees (ex: 3).
+    Retourne un float. C'est CETTE valeur qui pourra apparaitre dans la reponse.
     """
     df = _load(ticker)
+    if annees is not None and annees > 0:
+        fin = df.index.max()
+        debut = fin - pd.DateOffset(years=annees)
+        df = df[df.index >= debut]
     closes = df["Close"].astype(float)
 
     if metric == "prix_dernier":
         return float(closes.iloc[-1])
 
     if metric == "rendement_annualise":
-        debut, fin = closes.iloc[0], closes.iloc[-1]
+        debut_v, fin_v = closes.iloc[0], closes.iloc[-1]
         n_annees = len(closes) / TRADING_DAYS
-        if debut <= 0 or n_annees <= 0:
-            raise ValueError("Données insuffisantes pour le rendement")
-        return float((fin / debut) ** (1 / n_annees) - 1) * 100  # en %
+        if debut_v <= 0 or n_annees <= 0:
+            raise ValueError("Donnees insuffisantes pour le rendement")
+        return float((fin_v / debut_v) ** (1 / n_annees) - 1) * 100
 
     if metric == "volatilite":
         rets = closes.pct_change().dropna()
-        return float(rets.std() * np.sqrt(TRADING_DAYS) * 100)  # en %
+        return float(rets.std() * np.sqrt(TRADING_DAYS) * 100)
 
-    raise ValueError(f"Métrique inconnue : {metric}")
+    raise ValueError(f"Metrique inconnue : {metric}")
 
 
-def get_price(ticker: str, date: str) -> float:
-    """Prix de clôture à une date (format YYYY-MM-DD)."""
+def get_price(ticker, date):
+    """Prix de cloture a une date (format YYYY-MM-DD)."""
     df = _load(ticker)
     try:
         return float(df.loc[date, "Close"])
@@ -80,16 +85,15 @@ def get_price(ticker: str, date: str) -> float:
         raise ValueError(f"Pas de cotation pour {ticker} le {date}")
 
 
-def classer_etfs(tickers, metric="rendement_annualise"):
+def classer_etfs(tickers, metric="rendement_annualise", annees=None):
     """
     Classe plusieurs ETF selon une metrique. Retourne une liste triee
     [(ticker, valeur), ...] du meilleur au moins bon.
-    C'est ce qui permet de repondre a "quel est le meilleur ETF monde ?".
     """
     resultats = []
     for t in tickers:
         try:
-            v = compute_metric(t, metric)
+            v = compute_metric(t, metric, annees=annees)
             resultats.append((t, v))
         except Exception:
             continue

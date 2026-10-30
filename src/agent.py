@@ -72,13 +72,14 @@ def _choisir_outil(question):
         metric = "rendement_annualise"
     elif any(w in q for w in ("volatil", "risque", "variation")):
         metric = "volatilite"
-    elif any(w in q for w in ("prix", "cours", "cloture", "dernier")):
+    elif any(w in q for w in ("prix", "cours", "cloture")) or "dernier prix" in q:
         metric = "prix_dernier"
     if metric is None and "%" in q:
         metric = "rendement_annualise"
 
-    # 3. Cas special : "meilleur ETF <theme>" -> classement
-    if "meilleur" in q and "etf" in q:
+    # 3. Cas special : "meilleur / top N ETF" -> classement
+    if ("meilleur" in q or "top " in q) and "etf" in q:
+        annees = _extraire_annees(q)
         # 3a. Secteur Yahoo ? (tech, energie, sante...)
         secteur = resoudre_secteur(q)
         if secteur:
@@ -87,6 +88,7 @@ def _choisir_outil(question):
                 return {"outil": "classer_etfs",
                         "tickers": tickers,
                         "metric": metric or "rendement_annualise",
+                        "annees": annees,
                         "source": "heuristique-secteur",
                         "secteur": secteur}
         # 3b. Theme specifique ? (chine, petrole, semi...)
@@ -95,11 +97,15 @@ def _choisir_outil(question):
             return {"outil": "classer_etfs",
                     "tickers": tickers_theme,
                     "metric": metric or "rendement_annualise",
+                    "annees": annees,
                     "source": "heuristique-theme"}
-        # 3c. Rien de reconnu -> refus honnete
-        return {"outil": "aucun", "raison":
-                "theme non couvert (ni secteur Yahoo, ni theme specifique)",
-                "source": "heuristique"}
+        # 3c. Pas de theme -> panier par defaut de grands ETF
+        panier_defaut = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT"]
+        return {"outil": "classer_etfs",
+                "tickers": panier_defaut,
+                "metric": metric or "rendement_annualise",
+                "annees": annees,
+                "source": "heuristique-panier"}
 
     # 4. Ticker + metrique -> compute_metric
     if ticker and metric:
@@ -129,6 +135,20 @@ def _choisir_outil(question):
         return choix
     except json.JSONDecodeError:
         return {"outil": "aucun", "raison": "JSON invalide"}
+
+
+def _extraire_annees(texte):
+    """Extrait une periode en annees d'un texte (ex: '3 ans' -> 3)."""
+    m = re.search(r"(\d+)\s*(?:ans?|annees?|derniere?s?\s+annees?)", texte.lower())
+    if not m:
+        return None
+    try:
+        n = int(m.group(1))
+        if 1 <= n <= 20:
+            return n
+    except ValueError:
+        pass
+    return None
 
 
 def _extraire_pourcentage(texte):
@@ -166,7 +186,8 @@ def repondre(question):
     # --- Cas classement ---
     if choix.get("outil") == "classer_etfs":
         try:
-            classement = classer_etfs(choix["tickers"], choix["metric"])
+            classement = classer_etfs(choix["tickers"], choix["metric"],
+                                      annees=choix.get("annees"))
             trace.append("outil classer_etfs: %s" % classement)
         except Exception as e:
             trace.append("classer_etfs en erreur: %s" % e)
@@ -178,9 +199,11 @@ def repondre(question):
                     "reponse": "Aucun ETF n'a pu etre evalue.",
                     "chiffres": [], "verdict": False, "trace": trace}
         best_t, best_v = classement[0]
+        period = choix.get("annees")
+        suffix = ("sur %d ans" % period) if period else "sur 5 ans"
         reponse_finale = (
-            "Le meilleur est %s avec %.2f%% de rendement annualise sur 5 ans."
-            % (best_t, best_v)
+            "Le meilleur est %s avec %.2f%% de rendement annualise %s."
+            % (best_t, best_v, suffix)
         )
         verdict = verifier_reponse(reponse_finale, [v for _, v in classement])
         trace.append("barriere: ok=%s raison=%s" % (verdict.ok, verdict.raison))
