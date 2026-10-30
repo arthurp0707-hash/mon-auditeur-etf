@@ -1,0 +1,82 @@
+[
+  {
+    "id": "T01",
+    "ticker": "QQQ",
+    "metric": "rendement_annualise",
+    "question": "Quel est le rendement annualise de QQQ sur 5 ans ?",
+    "verite": "calculee",
+    "tolerance_pct": 1.0
+  },
+  {
+    "id": "T02",
+    "ticker": "SPY",
+    "metric": "rendement_annualise",
+    "question": "Quel est le rendement annualise de SPY sur 5 ans ?",
+    "verite": "calculee",
+    "tolerance_pct": 1.0
+  },
+  {
+    "id": "T03",
+    "ticker": "QQQ",
+    "metric": "volatilite",
+    "question": "Quelle est la volatilite annualisee de QQQ ?",
+    "verite": "calculee",
+    "tolerance_pct": 2.0
+  },
+  {
+    "id": "T04",
+    "ticker": "SPY",
+    "metric": "volatilite",
+    "question": "Quelle est la volatilite annualisee de SPY ?",
+    "verite": "calculee",
+    "tolerance_pct": 2.0
+  },
+  {
+    "id": "T05",
+    "ticker": "QQQ",
+    "metric": "prix_dernier",
+    "question": "Quel est le dernier prix de cloture de QQQ ?",
+    "verite": "calculee",
+    "tolerance_pct": 1.0
+  },
+  {
+    "id": "T06",
+    "ticker": "SPY",
+    "metric": "prix_dernier",
+    "question": "Quel est le dernier prix de cloture de SPY ?",
+    "verite": "calculee",
+    "tolerance_pct": 1.0
+  },
+  {
+    "id": "T07",
+    "ticker": "QQQ",
+    "metric": "faux_rendement_45",
+    "question": "QQQ a-t-il fait +45% par an sur 5 ans ?",
+    "verite": "fausse",
+    "tolerance_pct": 0.0
+  },
+  {
+    "id": "T08",
+    "ticker": "SPY",
+    "metric": "faux_vol_5",
+    "question": "La volatilite de SPY est-elle de 5% ?",
+    "verite": "fausse",
+    "tolerance_pct": 0.0
+  },
+  {
+    "id": "T09",
+    "ticker": "QQQ",
+    "metric": "diversification",
+    "question": "QQQ est-il l'ETF le plus diversifie du marche ?",
+    "verite": "ambigue",
+    "tolerance_pct": 0.0
+  },
+  {
+    "id": "T10",
+    "ticker": "SPY",
+    "metric": "surpasse_indice",
+    "question": "SPY bat-il le S&P 500 sur 5 ans ?",
+    "verite": "ambigue",
+    "tolerance_pct": 0.0
+  }
+]
