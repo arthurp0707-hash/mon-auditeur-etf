@@ -18,7 +18,9 @@ from src.barrier import verifier_reponse
 from src.config import OLLAMA_MODEL, OLLAMA_NUM_CTX, OLLAMA_URL
 from src.memoire import charger_profil
 from src.tools import compute_metric, classer_etfs
-from src.resolver import resoudre_ticker
+from src.resolver import (
+    resoudre_ticker, resoudre_theme, resoudre_secteur, top_etfs_secteur,
+)
 
 NUM_RE = re.compile(r"[-+]?\d+(?:[.,]\d+)?")
 
@@ -75,11 +77,28 @@ def _choisir_outil(question):
     if metric is None and "%" in q:
         metric = "rendement_annualise"
 
-    # 3. Cas special : "meilleur ETF monde" -> classement
-    if "meilleur" in q and ("etf" in q or "monde" in q):
-        return {"outil": "classer_etfs",
-                "tickers": ["IWDA.AS", "CW8.PA"],
-                "metric": metric or "rendement_annualise",
+    # 3. Cas special : "meilleur ETF <theme>" -> classement
+    if "meilleur" in q and "etf" in q:
+        # 3a. Secteur Yahoo ? (tech, energie, sante...)
+        secteur = resoudre_secteur(q)
+        if secteur:
+            tickers = top_etfs_secteur(secteur)
+            if tickers:
+                return {"outil": "classer_etfs",
+                        "tickers": tickers,
+                        "metric": metric or "rendement_annualise",
+                        "source": "heuristique-secteur",
+                        "secteur": secteur}
+        # 3b. Theme specifique ? (chine, petrole, semi...)
+        tickers_theme = resoudre_theme(q)
+        if tickers_theme:
+            return {"outil": "classer_etfs",
+                    "tickers": tickers_theme,
+                    "metric": metric or "rendement_annualise",
+                    "source": "heuristique-theme"}
+        # 3c. Rien de reconnu -> refus honnete
+        return {"outil": "aucun", "raison":
+                "theme non couvert (ni secteur Yahoo, ni theme specifique)",
                 "source": "heuristique"}
 
     # 4. Ticker + metrique -> compute_metric

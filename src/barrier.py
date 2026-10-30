@@ -19,8 +19,14 @@ _NUMBER_RE = re.compile(r"[-+]?\d+(?:[.,]\d+)?")
 _WHITELIST = {0, 1, 2, 3, 4, 5, 10, 100, 1000}
 
 
+# Motif des tickers (ex: CW8.PA, QQQ, IWDA.AS) : on les retire avant
+# d'extraire les nombres, sinon "CW8" donne le chiffre 8.
+_TICKER_RE = re.compile(r"\b[A-Z]{2,}\d*(?:\.[A-Z]{2})?\b")
+
+
 def _extract_numbers(text: str) -> list[float]:
-    """Extrait tous les nombres d'un texte, normalisés en float."""
+    """Extrait tous les nombres d'un texte, en ignorant les tickers."""
+    text = _TICKER_RE.sub(" ", text)
     out: list[float] = []
     for raw in _NUMBER_RE.findall(text):
         try:
