@@ -8,3 +8,4 @@ data/cache/*.csv
 *.gguf
 ai_log/*.tmp
 profil.json
+profil.json
