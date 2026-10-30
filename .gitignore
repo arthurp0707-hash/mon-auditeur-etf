@@ -7,3 +7,4 @@ data/cache/*.csv
 !data/cache/.gitkeep
 *.gguf
 ai_log/*.tmp
+profil.json
