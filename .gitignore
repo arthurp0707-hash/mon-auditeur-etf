@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+data/cache/*.csv
+!data/cache/.gitkeep
+*.gguf
+ai_log/*.tmp
