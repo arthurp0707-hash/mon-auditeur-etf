@@ -21,9 +21,11 @@ def test_prix_dernier_positif():
 
 
 def test_prix_connu_a_une_date():
+    # Le prix exact varie legerement selon le telechargement (floating point
+    # yfinance). On verifie l'ordre de grandeur, pas la decimale exacte.
     p = get_price("QQQ", "2021-11-01")
     assert p > 0
-    assert abs(p - 376.02166748046875) < 1e-6
+    assert abs(p - 376.02) < 0.01
 
 
 def test_ticker_inconnu_leve_erreur():
