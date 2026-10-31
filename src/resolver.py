@@ -170,42 +170,56 @@ _FALLBACK_THEMES = {
 def resoudre_theme(texte):
     """
     Cherche des ETF correspondant a un theme via yfinance Lookup.
-    Traduit d'abord le theme francais en anglais via le LLM.
+    Traduit le theme francais en anglais, cherche, puis filtre les tickers
+    valides (qui se telechargent et ont assez de lignes).
+    Fallback sur un mini-dictionnaire uniquement si Yahoo ne trouve rien.
     """
     if not texte or not texte.strip():
         return None
 
-    # Traduire le theme francais en anglais
-    try:
-        from src.llm_parser import traduire_theme
-        theme_en = traduire_theme(texte)
-    except Exception:
-        theme_en = texte
-
-    # Pour les themes connus, utiliser le fallback verifie en priorite
+    # 1. Normaliser les fautes de frappe
     bas = texte.lower().strip()
     if bas in _NORMALISATION:
         bas = _NORMALISATION[bas]
+
+    # 2. Traduire en anglais
+    try:
+        from src.llm_parser import traduire_theme
+        theme_en = traduire_theme(bas)
+    except Exception:
+        theme_en = bas
+
+    # 3. Chercher sur Yahoo (20 resultats pour avoir de la marge)
+    candidats = []
+    for mot in (theme_en, bas):
+        try:
+            lookup = yf.Lookup(mot)
+            etfs = lookup.get_etf(count=20)
+            if etfs is not None and not etfs.empty:
+                candidats = list(etfs.index)
+                break
+        except Exception:
+            pass
+
+    # 4. Filtrer : garder les tickers qui se telechargent et ont assez de lignes
+    valides = []
+    for t in candidats:
+        try:
+            from src.tools import _load
+            df = _load(t)
+            if len(df) >= 100:
+                valides.append(t)
+            if len(valides) >= 5:
+                break
+        except Exception:
+            continue
+
+    if valides:
+        return valides
+
+    # 5. Dernier recours : mini-dictionnaire verifie (themes tres courants)
     if bas in _FALLBACK_THEMES:
         return _FALLBACK_THEMES[bas]
-
-    # Chercher sur Yahoo avec le mot anglais
-    try:
-        lookup = yf.Lookup(theme_en)
-        etfs = lookup.get_etf(count=10)
-        if etfs is not None and not etfs.empty:
-            return list(etfs.index)
-    except Exception:
-        pass
-
-    # Fallback : essayer avec le mot original
-    try:
-        lookup = yf.Lookup(texte)
-        etfs = lookup.get_etf(count=10)
-        if etfs is not None and not etfs.empty:
-            return list(etfs.index)
-    except Exception:
-        pass
 
     return None
 def resoudre_secteur(texte):
