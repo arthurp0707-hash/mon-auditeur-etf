@@ -121,15 +121,93 @@ def resoudre_ticker(texte):
     return None, None
 
 
+# Normalisation des fautes de frappe courantes (partagee avec llm_parser)
+_NORMALISATION = {
+    "gaze": "gaz",
+    "petrol": "petrole",
+    "santé": "sante",
+    "medicall": "medical",
+    "technologi": "technologie",
+    "immobillier": "immobilier",
+}
+
+
+# Dictionnaire de secours verifie manuellement (dernier recours).
+# Utilise en priorite pour les themes connus, car yf.Lookup renvoie parfois
+# des actions au lieu d'ETF.
+_FALLBACK_THEMES = {
+    "gaz": ["UNG", "UNL", "FCG"],
+    "gaze": ["UNG", "UNL", "FCG"],
+    "natural gas": ["UNG", "UNL", "FCG"],
+    "petrole": ["USO", "XLE", "XOP"],
+    "petrol": ["USO", "XLE", "XOP"],
+    "crude oil": ["USO", "XLE", "XOP"],
+    "oil": ["USO", "XLE", "XOP"],
+    "or": ["GLD", "IAU", "GDX"],
+    "gold": ["GLD", "IAU", "GDX"],
+    "eau": ["PHO", "FIW", "CGW"],
+    "water": ["PHO", "FIW", "CGW"],
+    "sante": ["XLV", "IBB", "XBI"],
+    "medical": ["XLV", "IBB", "XBI"],
+    "healthcare": ["XLV", "IBB", "XBI"],
+    "technologie": ["QQQ", "VGT", "XLK"],
+    "tech": ["QQQ", "VGT", "XLK"],
+    "technology": ["QQQ", "VGT", "XLK"],
+    "chine": ["ICHD.AS", "FXI", "MCHI"],
+    "china": ["ICHD.AS", "FXI", "MCHI"],
+    "foret": ["WOOD", "WOOE.AS", "WOOD.L"],
+    "forest": ["WOOD", "WOOE.AS", "WOOD.L"],
+    "immobilier": ["XLRE", "VNQ", "IYR"],
+    "real estate": ["XLRE", "VNQ", "IYR"],
+    "energie": ["XLE", "XOP", "USO"],
+    "energy": ["XLE", "XOP", "USO"],
+    "defense": ["ITA", "XAR", "PPA"],
+    "cybersecurite": ["HACK", "CIBR", "BUG"],
+    "robotique": ["BOTZ", "ROBO", "IRBO"],
+}
+
+
 def resoudre_theme(texte):
-    """Retourne une liste de tickers pour un theme specifique, ou None."""
-    bas = texte.lower()
-    for theme, tickers in _THEMES.items():
-        if theme in bas:
-            return tickers
+    """
+    Cherche des ETF correspondant a un theme via yfinance Lookup.
+    Traduit d'abord le theme francais en anglais via le LLM.
+    """
+    if not texte or not texte.strip():
+        return None
+
+    # Traduire le theme francais en anglais
+    try:
+        from src.llm_parser import traduire_theme
+        theme_en = traduire_theme(texte)
+    except Exception:
+        theme_en = texte
+
+    # Pour les themes connus, utiliser le fallback verifie en priorite
+    bas = texte.lower().strip()
+    if bas in _NORMALISATION:
+        bas = _NORMALISATION[bas]
+    if bas in _FALLBACK_THEMES:
+        return _FALLBACK_THEMES[bas]
+
+    # Chercher sur Yahoo avec le mot anglais
+    try:
+        lookup = yf.Lookup(theme_en)
+        etfs = lookup.get_etf(count=10)
+        if etfs is not None and not etfs.empty:
+            return list(etfs.index)
+    except Exception:
+        pass
+
+    # Fallback : essayer avec le mot original
+    try:
+        lookup = yf.Lookup(texte)
+        etfs = lookup.get_etf(count=10)
+        if etfs is not None and not etfs.empty:
+            return list(etfs.index)
+    except Exception:
+        pass
+
     return None
-
-
 def resoudre_secteur(texte):
     """Detecte un secteur Yahoo (tech, energie, sante...). Retourne le nom ou None."""
     bas = texte.lower()

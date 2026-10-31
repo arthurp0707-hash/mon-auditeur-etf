@@ -40,113 +40,84 @@ def _ask(prompt):
         return "[modele muet: %s]" % e
 
 
-def _choisir_outil(question):
+def _choisir_outil(question, profil=None):
     """
-    Choisit l'outil. Regle de code d'abord, LLM en secours.
-
-    1. Resoudre le ticker (QQQ, SPY, IWDA.AS, CW8.PA... meme mal ecrit).
-    2. Detecter la metrique dans la question.
-    3. Cas special "meilleur ETF monde" -> classement.
-    4. Si ticker + metrique -> compute_metric (heuristique).
-    Sinon -> demander au LLM (peu fiable sur un 4B, mais on garde la trace).
+    Comprend la question via le LLM (structured output), puis resout le
+    theme/secteur en tickers. Fallback heuristique si le LLM echoue.
     """
-    q = question.lower()
+    from src.llm_parser import parser_intention
+    from src.resolver import (resoudre_secteur, top_etfs_secteur,
+                               resoudre_theme, resoudre_ticker)
 
-    # 1. Ticker : cas connus en dur, puis resoudre_ticker
-    ticker = None
-    for t in ("qqq", "spy"):
-        if t in q:
-            ticker = t.upper()
-            break
-    if ticker is None:
-        t_resolu, _ = resoudre_ticker(question)
-        if t_resolu:
-            ticker = t_resolu
+    intent = parser_intention(question, profil)
+    outil = intent.get("outil", "aucun")
 
-    # 2. Metrique
-    metric = None
-    if any(w in q for w in ("rendement", "performance", "cagr", "annualise",
-                            "fait +", "fait -", "a fait", "gagne", "perdu")):
-        metric = "rendement_annualise"
-    elif "rendem" in q or "rendemen" in q:
-        metric = "rendement_annualise"
-    elif any(w in q for w in ("volatil", "risque", "variation")):
-        metric = "volatilite"
-    elif any(w in q for w in ("prix", "cours", "cloture")) or "dernier prix" in q:
-        metric = "prix_dernier"
-    if metric is None and "%" in q:
-        metric = "rendement_annualise"
+    if outil == "aucun":
+        return {"outil": "aucun", "raison": "intention non calculable",
+                "source": "llm-parser", "intent": intent}
 
-    # 3. Cas speciaux : classement, secteur, panier
-    intention_classement = (
-        "meilleur" in q or "top " in q or "performant" in q
-        or "performe" in q or "quel etf" in q or "quelle etf" in q
-    )
-    if intention_classement and ("etf" in q or "investir" in q):
-        annees = _extraire_annees(q)
-        # 3a. Question sur le SECTEUR (pas le ticker)
-        if "secteur" in q:
-            return {"outil": "meilleur_secteur", "annees": annees,
-                    "source": "heuristique-secteur-global"}
-        # 3b. Secteur Yahoo ? (tech, energie, sante...)
-        secteur = resoudre_secteur(q)
+    if outil == "meilleur_secteur":
+        annees = intent.get("annees") or None
+        return {"outil": "meilleur_secteur", "annees": annees,
+                "source": "llm-parser", "intent": intent}
+
+    if outil == "compute_metric":
+        # Resoudre le ticker depuis la question
+        ticker, _ = resoudre_ticker(question)
+        if not ticker:
+            # Essayer avec le theme
+            theme = intent.get("theme", "")
+            if theme:
+                tickers = resoudre_theme(theme)
+                if tickers:
+                    ticker = tickers[0]
+        if not ticker:
+            return {"outil": "aucun", "raison": "ticker introuvable",
+                    "source": "llm-parser", "intent": intent}
+        metric = intent.get("metric", "rendement_annualise")
+        annees = intent.get("annees") or None
+        return {"outil": "compute_metric", "ticker": ticker,
+                "metric": metric, "annees": annees,
+                "source": "llm-parser", "intent": intent}
+
+    if outil == "classer_etfs":
+        theme = intent.get("theme", "")
+        # 1. Secteur Yahoo ?
+        secteur = resoudre_secteur(theme) if theme else None
         if secteur:
             tickers = top_etfs_secteur(secteur)
             if tickers:
-                return {"outil": "classer_etfs",
-                        "tickers": tickers,
-                        "metric": metric or "rendement_annualise",
-                        "annees": annees,
-                        "top_n": _extraire_top_n(q),
-                        "source": "heuristique-secteur",
-                        "secteur": secteur}
-        # 3c. Theme specifique ? (chine, petrole, semi...)
-        tickers_theme = resoudre_theme(q)
-        if tickers_theme:
-            return {"outil": "classer_etfs",
-                    "tickers": tickers_theme,
-                    "metric": metric or "rendement_annualise",
-                    "annees": annees,
-                    "top_n": _extraire_top_n(q),
-                    "source": "heuristique-theme"}
-        # 3d. Pas de theme -> panier par defaut
-        panier_defaut = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT", "XLE", "XLV", "XLF", "XLI", "XLY", "XLU", "XLRE"]
-        return {"outil": "classer_etfs",
-                "tickers": panier_defaut,
-                "metric": metric or "rendement_annualise",
-                "annees": annees,
-                "top_n": _extraire_top_n(q),
-                "source": "heuristique-panier"}
+                return {"outil": "classer_etfs", "tickers": tickers,
+                        "metric": intent.get("metric", "rendement_annualise"),
+                        "annees": intent.get("annees") or None,
+                        "top_n": intent.get("top_n") or 5,
+                        "filtre_min": intent.get("filtre_min") or 0,
+                        "sens": intent.get("sens", "max"),
+                        "source": "llm-parser-secteur", "secteur": secteur,
+                        "intent": intent}
+        # 2. Theme specifique ?
+        if theme:
+            tickers = resoudre_theme(theme)
+            if tickers:
+                return {"outil": "classer_etfs", "tickers": tickers,
+                        "metric": intent.get("metric", "rendement_annualise"),
+                        "annees": intent.get("annees") or None,
+                        "top_n": intent.get("top_n") or 5,
+                        "filtre_min": intent.get("filtre_min") or 0,
+                        "sens": intent.get("sens", "max"),
+                        "source": "llm-parser-theme", "intent": intent}
+        # 3. Panier par defaut
+        panier = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT",
+                  "XLE", "XLV", "XLF", "XLI", "XLY", "XLU", "XLRE"]
+        return {"outil": "classer_etfs", "tickers": panier,
+                "metric": intent.get("metric", "rendement_annualise"),
+                "annees": intent.get("annees") or None,
+                "top_n": intent.get("top_n") or 5,
+                "filtre_min": intent.get("filtre_min") or 0,
+                "sens": intent.get("sens", "max"),
+                "source": "llm-parser-panier", "intent": intent}
 
-
-    # 4. Ticker + metrique -> compute_metric
-    if ticker and metric:
-        return {"outil": "compute_metric", "ticker": ticker, "metric": metric,
-                "source": "heuristique"}
-
-    # 5. Secours : LLM
-    prompt = (
-        "Tu es un agent qui ne calcule jamais. Choisis UN outil parmi : "
-        "compute_metric(ticker, metric) avec metric parmi "
-        "rendement_annualise, volatilite, prix_dernier ; "
-        "ou aucun si la question n'est pas calculable. "
-        "Tickers disponibles : QQQ, SPY, IWDA.AS, CW8.PA. "
-        "Question : " + question + " "
-        "Reponds UNIQUEMENT par un JSON."
-    )
-    raw = _ask(prompt)
-    m = re.search(r"\{.*\}", raw, re.DOTALL)
-    if not m:
-        return {"outil": "aucun", "raison": "heuristique et LLM muets"}
-    try:
-        choix = json.loads(m.group(0))
-        if "outil" not in choix:
-            choix = {"outil": "aucun", "raison": "cle 'outil' absente",
-                     "brut": choix}
-        choix["source"] = "llm"
-        return choix
-    except json.JSONDecodeError:
-        return {"outil": "aucun", "raison": "JSON invalide"}
+    return {"outil": "aucun", "raison": "outil inconnu", "source": "llm-parser"}
 
 
 def _extraire_top_n(texte):
@@ -188,11 +159,22 @@ def _extraire_pourcentage(texte):
         return None
 
 
-def _rediger(question, chiffre, metric, ticker):
-    """Demande au LLM de rediger une phrase qui cite UNIQUEMENT ce chiffre."""
+def _rediger(question, chiffre, metric, ticker, profil=None):
+    """Demande au LLM de rediger une phrase qui cite UNIQUEMENT ce chiffre.
+    Injecte le profil utilisateur pour personnaliser la reponse."""
+    profil_txt = ""
+    if profil:
+        profil_txt = (
+            "Profil de l'utilisateur : risque=%s, horizon=%s ans, "
+            "exclusions=%s. "
+            % (profil.get("risque", "moyen"),
+               profil.get("horizon_annees", 5),
+               profil.get("exclusions", []))
+        )
     prompt = (
         "Redige une phrase courte en francais qui repond a la question en "
         "citant exactement le chiffre %.2f. " % chiffre
+        + profil_txt
         + "N'invente AUCUN autre chiffre. "
         + "Question : " + question
     )
@@ -206,7 +188,7 @@ def repondre(question):
     trace.append("profil charge: risque=%s, exclusions=%s"
                  % (profil["risque"], profil["exclusions"]))
 
-    choix = _choisir_outil(question)
+    choix = _choisir_outil(question, profil=profil)
     trace.append("choix LLM: %s" % choix)
 
     # --- Cas classement ---
@@ -224,6 +206,13 @@ def repondre(question):
             return {"question": question,
                     "reponse": "Aucun ETF n'a pu etre evalue.",
                     "chiffres": [], "verdict": False, "trace": trace}
+        # Appliquer le filtre minimum si demande
+        filtre_min = choix.get("filtre_min", 0)
+        if filtre_min and filtre_min > 0:
+            avant = len(classement)
+            classement = [(t, v) for t, v in classement if v >= filtre_min]
+            trace.append("filtre >= %.1f : %d -> %d" % (filtre_min, avant, len(classement)))
+
         # Limiter a top_n si demande
         top_n = choix.get("top_n")
         if top_n and top_n < len(classement):
@@ -233,21 +222,39 @@ def repondre(question):
         period = choix.get("annees")
         suffix = ("sur %d ans" % period) if period else "sur 5 ans"
         metric_choisie = choix.get("metric", "rendement_annualise")
+        sens = choix.get("sens", "max")
         if metric_choisie == "volatilite":
+            label = "Le moins volatil" if sens == "min" else "Le plus volatil"
             reponse_finale = (
-                "Le moins volatil est %s avec %.2f%% de volatilite %s."
-                % (best_t, best_v, suffix)
+                "%s est %s avec %.2f%% de volatilite %s."
+                % (label, best_t, best_v, suffix)
             )
         else:
-            reponse_finale = (
-                "Le meilleur est %s avec %.2f%% de rendement annualise %s."
-                % (best_t, best_v, suffix)
-            )
+            label = "Le meilleur" if sens == "max" else "Le moins performant"
+            # Si top_n > 1, citer le classement complet
+            if len(classement) > 1:
+                details = ", ".join("%s (%.2f%%)" % (t, v) for t, v in classement)
+                reponse_finale = (
+                    "%s est %s avec %.2f%% de rendement annualise %s. "
+                    "Classement : %s."
+                    % (label, best_t, best_v, suffix, details)
+                )
+            else:
+                reponse_finale = (
+                    "%s est %s avec %.2f%% de rendement annualise %s."
+                    % (label, best_t, best_v, suffix)
+                )
         verdict = verifier_reponse(reponse_finale, [v for _, v in classement])
         trace.append("barriere: ok=%s raison=%s" % (verdict.ok, verdict.raison))
         return {"question": question, "reponse": reponse_finale,
                 "chiffres": [v for _, v in classement],
-                "verdict": verdict.ok, "trace": trace}
+                "verdict": verdict.ok, "trace": trace,
+                "meta": {"outil": "classer_etfs",
+                         "classement": classement,
+                         "metric": choix.get("metric"),
+                         "annees": choix.get("annees"),
+                         "source": choix.get("source"),
+                         "tickers": choix.get("tickers")}}
 
     # --- Cas meilleur_secteur ---
     if choix.get("outil") == "meilleur_secteur":
@@ -274,7 +281,10 @@ def repondre(question):
         trace.append("barriere: ok=%s raison=%s" % (verdict.ok, verdict.raison))
         return {"question": question, "reponse": reponse_finale,
                 "chiffres": [v for _, _, v in classement],
-                "verdict": verdict.ok, "trace": trace}
+                "verdict": verdict.ok, "trace": trace,
+                "meta": {"outil": "meilleur_secteur",
+                         "classement_secteurs": classement,
+                         "annees": choix.get("annees")}}
 
     # --- Cas pas d'outil ---
     if choix.get("outil") != "compute_metric":
@@ -282,7 +292,7 @@ def repondre(question):
         verdict = verifier_reponse(reponse, [])
         trace.append("barriere: %s" % verdict.raison)
         return {"question": question, "reponse": reponse, "chiffres": [],
-                "verdict": verdict.ok, "trace": trace}
+                "verdict": verdict.ok, "trace": trace, "meta": {}}
 
     # --- Cas compute_metric ---
     ticker = choix.get("ticker", "QQQ")
@@ -320,7 +330,7 @@ def repondre(question):
                 "chiffres": [chiffre], "verdict": verdict.ok, "trace": trace}
 
     # Sinon, redaction par le LLM
-    reponse_llm = _rediger(question, chiffre, metric, ticker)
+    reponse_llm = _rediger(question, chiffre, metric, ticker, profil=profil)
     trace.append("redaction LLM: %s" % reponse_llm[:150])
 
     verdict = verifier_reponse(reponse_llm, [chiffre])
@@ -333,5 +343,21 @@ def repondre(question):
     else:
         reponse_finale = reponse_llm
 
+    # Recuperer les prix pour le graphique
+    try:
+        from src.tools import _load
+        df = _load(ticker)
+        if annees := choix.get("annees"):
+            import pandas as pd
+            fin = df.index.max()
+            df = df[df.index >= (fin - pd.DateOffset(years=annees))]
+        prix = {"dates": [str(d.date()) for d in df.index[-250:]],
+                "close": [float(c) for c in df["Close"].iloc[-250:]]}
+    except Exception:
+        prix = None
+
     return {"question": question, "reponse": reponse_finale,
-            "chiffres": [chiffre], "verdict": verdict.ok, "trace": trace}
+            "chiffres": [chiffre], "verdict": verdict.ok, "trace": trace,
+            "meta": {"outil": "compute_metric", "ticker": ticker,
+                     "metric": metric, "annees": choix.get("annees"),
+                     "prix": prix}}
