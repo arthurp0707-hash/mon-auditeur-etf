@@ -40,8 +40,9 @@ _THEMES = {
     "oil": ["XLE", "XOP", "USO"],
     "semi": ["SMH", "SOXX"],
     "puces": ["SMH", "SOXX"],
-    "ia": ["QQQ", "ARTY", "VGT"],
-    "intelligence": ["QQQ", "ARTY", "VGT"],
+    "ia": ['VGT', 'QQQ', 'ARTY', 'XAIX.DE', 'IART.L', 'XAIX.L', 'AIAI.L'],
+    "intelligence": ['VGT', 'QQQ', 'ARTY', 'XAIX.DE', 'IART.L', 'XAIX.L', 'AIAI.L'],
+    "technologie": ['QQQ', 'VGT', 'ARTY', 'XLK', 'SMH', 'SOXX', 'IGV', 'FTEC', 'XAIX.DE', 'IART.L'],
 }
 
 

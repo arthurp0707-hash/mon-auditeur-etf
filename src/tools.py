@@ -24,23 +24,32 @@ def _load(ticker):
     """
     path = CACHE_DIR / f"{ticker}_5y_1d.csv"
     if not path.exists():
-        try:
-            import yfinance as yf
-            CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            df = yf.download(ticker, period="5y", interval="1d",
-                             auto_adjust=True, progress=False)
-            if df is None or df.empty:
-                raise RuntimeError(f"aucune donnee pour {ticker}")
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
-            df.index.name = "Date"
-            df.to_csv(path)
-        except Exception as e:
+        # Cache dynamique : on tente un telechargement a la volee, avec
+        # retry + pause pour ne pas bloquer sur Yahoo.
+        import time
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        df = None
+        for essai in range(3):
+            try:
+                import yfinance as yf
+                df = yf.download(ticker, period="5y", interval="1d",
+                                 auto_adjust=True, progress=False)
+                if df is not None and not df.empty:
+                    break
+            except Exception:
+                pass
+            time.sleep(2)
+        if df is None or df.empty:
             raise FileNotFoundError(
-                f"Cache absent pour {ticker} et telechargement impossible ({e}). "
+                f"Cache absent pour {ticker} et telechargement impossible. "
                 f"Lance: python data/download.py {ticker}"
             )
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+        df.index.name = "Date"
+        df.to_csv(path)
     df = pd.read_csv(path, index_col="Date", parse_dates=True)
+    df = df.dropna(subset=["Close"])
     return df.sort_index()
 
 
@@ -90,10 +99,13 @@ def classer_etfs(tickers, metric="rendement_annualise", annees=None):
     Classe plusieurs ETF selon une metrique. Retourne une liste triee
     [(ticker, valeur), ...] du meilleur au moins bon.
     """
+    import math
     resultats = []
     for t in tickers:
         try:
             v = compute_metric(t, metric, annees=annees)
+            if v is None or math.isnan(v) or math.isinf(v):
+                continue
             resultats.append((t, v))
         except Exception:
             continue

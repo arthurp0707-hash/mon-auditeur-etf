@@ -48,7 +48,7 @@ Si ta machine ne fait pas tourner le 4B, utilise Qwen 3.8 27B via Cerebras
     python3 -m venv .venv
     source .venv/bin/activate
     pip install -r requirements.txt
-    python data/download.py
+    python data/download_all.py
 
 ---
 
