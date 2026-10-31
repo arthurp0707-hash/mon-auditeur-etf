@@ -164,7 +164,40 @@ _FALLBACK_THEMES = {
     "defense": ["ITA", "XAR", "PPA"],
     "cybersecurite": ["HACK", "CIBR", "BUG"],
     "robotique": ["BOTZ", "ROBO", "IRBO"],
+    "china technology": ["CQQQ", "KWEB", "CHIK"],
+    "chinese technology": ["CQQQ", "KWEB", "CHIK"],
+    "chine technologie": ["CQQQ", "KWEB", "CHIK"],
+    "chinois technologie": ["CQQQ", "KWEB", "CHIK"],
 }
+
+
+def screener_etfs(region=None, sector=None, category=None, limit=10):
+    """
+    Screener ETF natif via yfinance.ETFQuery (pas de dictionnaire).
+    Combine region + sector + category avec AND.
+    Ex: screener_etfs(region="cn", sector="Technology") -> ETF chinois tech.
+    """
+    try:
+        from yfinance import ETFQuery, screen
+        conditions = []
+        if region:
+            conditions.append(ETFQuery('eq', ['region', region.lower()]))
+        if sector:
+            conditions.append(ETFQuery('eq', ['sector', sector]))
+        if category:
+            conditions.append(ETFQuery('eq', ['category', category]))
+        if not conditions:
+            return None
+        if len(conditions) == 1:
+            q = conditions[0]
+        else:
+            q = ETFQuery('and', conditions)
+        resultats = screen(q, size=limit)
+        if resultats is not None and not resultats.empty:
+            return list(resultats.index)
+    except Exception:
+        pass
+    return None
 
 
 def resoudre_theme(texte):

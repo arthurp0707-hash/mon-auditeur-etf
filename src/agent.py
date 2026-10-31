@@ -81,7 +81,18 @@ def _choisir_outil(question, profil=None):
                 "source": "llm-parser", "intent": intent}
 
     if outil == "classer_etfs":
-        theme = intent.get("theme", "")
+        theme = intent.get("theme", "").strip()
+        # Si aucun theme, utiliser le panier par defaut (pas yf.Lookup)
+        if not theme:
+            panier = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT",
+                      "XLE", "XLV", "XLF", "XLI", "XLY", "XLU", "XLRE"]
+            return {"outil": "classer_etfs", "tickers": panier,
+                    "metric": intent.get("metric", "rendement_annualise"),
+                    "annees": intent.get("annees") or None,
+                    "top_n": intent.get("top_n") or 5,
+                    "filtre_min": intent.get("filtre_min") or 0,
+                    "sens": intent.get("sens", "max"),
+                    "source": "llm-parser-panier", "intent": intent}
         # 1. Secteur Yahoo ?
         secteur = resoudre_secteur(theme) if theme else None
         if secteur:

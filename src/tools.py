@@ -15,6 +15,14 @@ from src.config import CACHE_DIR
 
 TRADING_DAYS = 252
 
+# ETF a effet de levier / inverse : exclus des classements "normaux".
+# Un utilisateur qui demande "le plus performant" ne veut pas un 3x.
+_ETF_LEVIER = {
+    "USD", "SSG", "SOXL", "SOXS", "TQQQ", "SQQQ", "UPRO", "SPXU",
+    "SPXL", "SPXS", "TNA", "TZA", "LABU", "LABD", "FAS", "FAZ",
+    "ERX", "ERY", "YINN", "YANG", "UVXY", "SVXY", "VIXY",
+}
+
 
 def _load(ticker):
     """
@@ -102,6 +110,8 @@ def classer_etfs(tickers, metric="rendement_annualise", annees=None):
     import math
     resultats = []
     for t in tickers:
+        if t in _ETF_LEVIER:
+            continue
         try:
             v = compute_metric(t, metric, annees=annees)
             if v is None or math.isnan(v) or math.isinf(v):

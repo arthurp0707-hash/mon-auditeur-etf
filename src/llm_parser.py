@@ -106,16 +106,30 @@ def parser_intention(question, profil=None):
 
     resultat = _appel_llm_structure(prompt, INTENT_SCHEMA)
     if resultat:
-        # Regle de secours : si "secteur" dans la question, forcer meilleur_secteur
+        # Regle de priorite : "pas risque" / "faible risque" / "le moins risque"
+        # -> metric=volatilite, sens=min, meme si "performant" est present.
         q = question.lower()
-        if "secteur" in q or "domaine" in q or "industrie" in q:
-            resultat["outil"] = "meilleur_secteur"
+        mots_risque = ("pas risque", "pas risqué", "faible risque",
+                       "moins risque", "moins risqué", "peu risque",
+                       "peu risqué", "securitaire", "prudent")
+        if any(m in q for m in mots_risque):
+            resultat["metric"] = "volatilite"
+            resultat["sens"] = "min"
         return resultat
 
     # Retry une fois avec un prompt simplifie
     prompt_simple = f"Question : {question}. Reponds en JSON."
     resultat = _appel_llm_structure(prompt_simple, INTENT_SCHEMA)
     if resultat:
+        # Regle de priorite : "pas risque" / "faible risque" / "le moins risque"
+        # -> metric=volatilite, sens=min, meme si "performant" est present.
+        q = question.lower()
+        mots_risque = ("pas risque", "pas risqué", "faible risque",
+                       "moins risque", "moins risqué", "peu risque",
+                       "peu risqué", "securitaire", "prudent")
+        if any(m in q for m in mots_risque):
+            resultat["metric"] = "volatilite"
+            resultat["sens"] = "min"
         return resultat
 
     # Fallback heuristique minimale
