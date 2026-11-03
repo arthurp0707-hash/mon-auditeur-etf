@@ -144,3 +144,85 @@ def meilleur_secteur(annees=None):
             resultats.append((secteur, best_t, best_v))
     resultats.sort(key=lambda x: x[2], reverse=True)
     return resultats
+
+
+def info_etf(ticker):
+    """
+    Retourne les infos disponibles sur un ETF via yfinance.
+    Retourne un dict avec nom, pays, categorie, devise, volatilite, rendements.
+    """
+    import yfinance as yf
+    import math
+    info = {"ticker": ticker}
+    try:
+        t = yf.Ticker(ticker)
+        data = t.info or {}
+        info["nom"] = data.get("longName") or data.get("shortName") or ""
+        info["pays"] = data.get("country", "")
+        info["categorie"] = data.get("category", "")
+        info["famille"] = data.get("fundFamily", "")
+        info["devise"] = data.get("currency", "")
+        info["type"] = data.get("quoteType", "")
+    except Exception:
+        pass
+    # Metriques calculees depuis le cache
+    for metric, label in [("volatilite", "vol_5y"),
+                          ("rendement_annualise", "rend_5y")]:
+        try:
+            v = compute_metric(ticker, metric)
+            if v is not None and not math.isnan(v):
+                info[label] = v
+        except Exception:
+            pass
+    for annees in (3, 2):
+        try:
+            v = compute_metric(ticker, "rendement_annualise", annees=annees)
+            if v is not None and not math.isnan(v):
+                info["rend_%dy" % annees] = v
+        except Exception:
+            pass
+    return info
+
+
+def top_etfs_marche(annees=5, top_n=10, region="us"):
+    """
+    Interroge Yahoo via ETFQuery, filtre les ETF performants, calcule leur
+    rendement reel, et retourne le top N. C'est le VRAI top, pas un panier.
+    """
+    from yfinance import ETFQuery, screen
+    import math
+
+    # Etape 1 : recuperer les ETF US avec une note de performance elevee
+    # (cela reduit la liste a ~50-100 ETF, au lieu de milliers)
+    q = ETFQuery('and', [
+        ETFQuery('eq', ['region', region]),
+        ETFQuery('is-in', ['performanceratingoverall', 4, 5]),
+    ])
+
+    try:
+        resultats = screen(q, size=100)
+    except Exception as e:
+        print(f"screen erreur: {e}")
+        return []
+
+    if not isinstance(resultats, dict):
+        return []
+    quotes = resultats.get("quotes", [])
+    if not quotes:
+        return []
+
+    # Etape 2 : calculer le rendement reel pour chaque ticker
+    top = []
+    for row in quotes:
+        sym = row.get("symbol")
+        if not sym:
+            continue
+        try:
+            v = compute_metric(sym, "rendement_annualise", annees=annees)
+            if v is not None and not math.isnan(v):
+                top.append((sym, v))
+        except Exception:
+            continue
+
+    top.sort(key=lambda x: x[1], reverse=True)
+    return top[:top_n]

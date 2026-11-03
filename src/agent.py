@@ -40,6 +40,66 @@ def _ask(prompt):
         return "[modele muet: %s]" % e
 
 
+def _filtrer_par_profil(classement, profil, metric):
+    """
+    Filtre un classement d'ETF selon le profil investisseur.
+    Le seuil de volatilite est CALCULE (mediane / 75e percentile / max),
+    pas code en dur. Les exclusions sont des TICKERS explicites du profil.
+    Retourne (classement_filtre, trace_filtrage).
+    """
+    import math
+    import numpy as np
+
+    trace = []
+    if not profil:
+        return classement, trace
+
+    exclusions_tickers = set(profil.get("exclusions", []))
+
+    # Calculer la distribution des volatilites du classement
+    vols = []
+    for tk, _ in classement:
+        try:
+            from src.tools import compute_metric
+            vv = compute_metric(tk, "volatilite")
+            if vv is not None and not math.isnan(vv):
+                vols.append(vv)
+        except Exception:
+            pass
+
+    risque = profil.get("risque")
+    seuil_vol = float("inf")
+    if vols and risque:
+        vols_arr = np.array(vols)
+        if risque == "faible":
+            seuil_vol = float(np.percentile(vols_arr, 50))  # mediane
+        elif risque == "moyen":
+            seuil_vol = float(np.percentile(vols_arr, 75))  # 75e percentile
+        # risque == "eleve" ou None : pas de filtre de volatilite
+
+    resultat = []
+    for t, v in classement:
+        # 1. Exclusions : tickers explicites du profil
+        if t in exclusions_tickers:
+            trace.append("exclu %s : dans les exclusions du profil" % t)
+            continue
+
+        # 2. Filtre de risque (seuil calcule)
+        if risque and seuil_vol < float("inf"):
+            try:
+                from src.tools import compute_metric
+                vol = v if metric == "volatilite" else compute_metric(t, "volatilite")
+                if vol is not None and not math.isnan(vol) and vol > seuil_vol:
+                    trace.append("exclu %s : volatilite %.1f > seuil calcule %.1f (risque %s)"
+                                 % (t, vol, seuil_vol, risque))
+                    continue
+            except Exception:
+                pass
+
+        resultat.append((t, v))
+    return resultat, trace
+
+
 def _choisir_outil(question, profil=None):
     """
     Comprend la question via le LLM (structured output), puis resout le
@@ -82,22 +142,28 @@ def _choisir_outil(question, profil=None):
 
     if outil == "classer_etfs":
         theme = intent.get("theme", "").strip()
-        # Si aucun theme, utiliser le panier par defaut (pas yf.Lookup)
+        # Si aucun theme -> VRAI top du marche via screen Yahoo
         if not theme:
-            # Panier CALCULE : top ETF de plusieurs secteurs Yahoo
-            from src.resolver import top_etfs_secteur
-            panier = []
-            for sect in ("technology", "healthcare", "financial-services",
-                         "energy", "industrials"):
-                panier.extend(top_etfs_secteur(sect)[:3])
-            panier = list(dict.fromkeys(panier))  # dedoublonner
+            from src.tools import top_etfs_marche
+            top = top_etfs_marche(annees=intent.get("annees") or 5,
+                                   top_n=intent.get("top_n") or 10)
+            if top:
+                return {"outil": "classer_etfs",
+                        "tickers": [t for t, _ in top],
+                        "metric": intent.get("metric", "rendement_annualise"),
+                        "annees": intent.get("annees") or 5,
+                        "top_n": intent.get("top_n") or 5,
+                        "filtre_min": intent.get("filtre_min") or 0,
+                        "sens": intent.get("sens", "max"),
+                        "source": "marche-reel", "intent": intent}
+            panier = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT"]
             return {"outil": "classer_etfs", "tickers": panier,
                     "metric": intent.get("metric", "rendement_annualise"),
                     "annees": intent.get("annees") or None,
                     "top_n": intent.get("top_n") or 5,
                     "filtre_min": intent.get("filtre_min") or 0,
                     "sens": intent.get("sens", "max"),
-                    "source": "llm-parser-panier", "intent": intent}
+                    "source": "fallback", "intent": intent}
         # 1. Secteur Yahoo ?
         secteur = resoudre_secteur(theme) if theme else None
         if secteur:
@@ -122,16 +188,27 @@ def _choisir_outil(question, profil=None):
                         "filtre_min": intent.get("filtre_min") or 0,
                         "sens": intent.get("sens", "max"),
                         "source": "llm-parser-theme", "intent": intent}
-        # 3. Panier par defaut
-        panier = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT",
-                  "XLE", "XLV", "XLF", "XLI", "XLY", "XLU", "XLRE"]
+        # 3. Pas de theme -> VRAI top du marche
+        from src.tools import top_etfs_marche
+        top = top_etfs_marche(annees=intent.get("annees") or 5,
+                               top_n=intent.get("top_n") or 10)
+        if top:
+            return {"outil": "classer_etfs",
+                    "tickers": [t for t, _ in top],
+                    "metric": intent.get("metric", "rendement_annualise"),
+                    "annees": intent.get("annees") or 5,
+                    "top_n": intent.get("top_n") or 5,
+                    "filtre_min": intent.get("filtre_min") or 0,
+                    "sens": intent.get("sens", "max"),
+                    "source": "marche-reel", "intent": intent}
+        panier = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT"]
         return {"outil": "classer_etfs", "tickers": panier,
                 "metric": intent.get("metric", "rendement_annualise"),
                 "annees": intent.get("annees") or None,
                 "top_n": intent.get("top_n") or 5,
                 "filtre_min": intent.get("filtre_min") or 0,
                 "sens": intent.get("sens", "max"),
-                "source": "llm-parser-panier", "intent": intent}
+                "source": "fallback", "intent": intent}
 
     return {"outil": "aucun", "raison": "outil inconnu", "source": "llm-parser"}
 
@@ -222,6 +299,19 @@ def repondre(question):
             return {"question": question,
                     "reponse": "Aucun ETF n'a pu etre evalue.",
                     "chiffres": [], "verdict": False, "trace": trace}
+
+        # Filtrer selon le profil investisseur (memoire active)
+        classement, trace_filtre = _filtrer_par_profil(
+            classement, profil, choix.get("metric", "rendement_annualise"))
+        for tf in trace_filtre:
+            trace.append("profil: " + tf)
+        if not classement:
+            return {"question": question,
+                    "reponse": "Aucun ETF compatible avec votre profil "
+                               "(tous exclus par le filtre).",
+                    "chiffres": [], "verdict": True, "trace": trace,
+                    "meta": {}}
+
         # Appliquer le filtre minimum si demande
         filtre_min = choix.get("filtre_min", 0)
         if filtre_min and filtre_min > 0:
