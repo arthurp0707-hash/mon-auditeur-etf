@@ -208,6 +208,17 @@ et une fiche par session (README + 12 sessions).
 
 ---
 
+## Nouvelles fonctions (au-dela des 5 briques)
+
+- **`top_etfs_marche`** (`src/tools.py`) : interroge tout l'univers Yahoo
+  via ETFQuery, trie par rendement 5 ans, retourne le vrai top.
+- **`parser_intention`** (`src/llm_parser.py`) : comprend les questions mal
+  ecrites via structured output.
+- **`resoudre_theme`** (`src/resolver.py`) : trouve des ETF par theme via
+  yf.Search + traduction LLM, sans dictionnaire.
+- **`app.py`** : interface Streamlit avec graphiques, fiches ETF, profil
+  personnalisable, benchmark A vs B en direct.
+
 ## Limites connues
 
 - **Combinaison pays + secteur partielle** : "ETF japonais tech" renvoie VGT

@@ -70,7 +70,13 @@ Attendu : 36 passed.
 
 Attendu : A=1.00 vs B=0.00 (systeme vs modele seul).
 
-### 4. Memoire persistante (brique 5)
+### 4. Lancer l'interface Streamlit
+
+    streamlit run app.py --server.address 0.0.0.0
+
+Puis ouvrir http://localhost:8501 dans le navigateur.
+
+### 5. Memoire persistante (brique 5)
 
     python -c "from src.memoire import charger_profil, sauver_profil; p=charger_profil(); p['risque']='moyen'; sauver_profil(p); print(charger_profil())"
 
