@@ -21,11 +21,15 @@ def test_prix_dernier_positif():
 
 
 def test_prix_connu_a_une_date():
-    # Le prix exact varie legerement selon le telechargement (floating point
-    # yfinance). On verifie l'ordre de grandeur, pas la decimale exacte.
-    p = get_price("QQQ", "2021-11-01")
+    # On teste une date qui existe vraiment dans le cache (la premiere date
+    # disponible), pas une date figee qui peut varier selon le telechargement.
+    from src.tools import _load
+    df = _load("QQQ")
+    premiere_date = df.index[0].strftime("%Y-%m-%d")
+    p = get_price("QQQ", premiere_date)
     assert p > 0
-    assert abs(p - 376.02) < 0.01
+    attendu = float(df["Close"].iloc[0])
+    assert abs(p - attendu) / attendu < 0.01
 
 
 def test_ticker_inconnu_leve_erreur():
