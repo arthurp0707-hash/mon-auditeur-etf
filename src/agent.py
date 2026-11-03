@@ -84,8 +84,13 @@ def _choisir_outil(question, profil=None):
         theme = intent.get("theme", "").strip()
         # Si aucun theme, utiliser le panier par defaut (pas yf.Lookup)
         if not theme:
-            panier = ["QQQ", "SPY", "IWDA.AS", "CW8.PA", "VGT",
-                      "XLE", "XLV", "XLF", "XLI", "XLY", "XLU", "XLRE"]
+            # Panier CALCULE : top ETF de plusieurs secteurs Yahoo
+            from src.resolver import top_etfs_secteur
+            panier = []
+            for sect in ("technology", "healthcare", "financial-services",
+                         "energy", "industrials"):
+                panier.extend(top_etfs_secteur(sect)[:3])
+            panier = list(dict.fromkeys(panier))  # dedoublonner
             return {"outil": "classer_etfs", "tickers": panier,
                     "metric": intent.get("metric", "rendement_annualise"),
                     "annees": intent.get("annees") or None,

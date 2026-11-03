@@ -274,3 +274,46 @@ def top_etfs_secteur(secteur):
     except Exception:
         pass
     return _FALLBACK_SECTEUR.get(secteur, [])
+
+
+def verifier_et_substituer_theme(theme_brut):
+    """
+    Verifie si un theme existe dans la base. Si non, cherche via yf.Search
+    en anglais (traduit par le LLM), filtre par nom, et retourne
+    (theme, tickers, substitue).
+    """
+    if not theme_brut:
+        return None, None, False
+
+    # 1. Le theme existe-t-il deja ? (yf.Lookup ou fallback)
+    tickers = resoudre_theme(theme_brut)
+    if tickers:
+        return theme_brut, tickers, False
+
+    # 2. Traduire en anglais via le LLM
+    try:
+        from src.llm_parser import traduire_theme
+        theme_en = traduire_theme(theme_brut)
+    except Exception:
+        theme_en = theme_brut
+
+    # 3. Chercher "<theme_en> ETF" avec yf.Search fuzzy
+    try:
+        search = yf.Search(theme_en + " ETF", enable_fuzzy_query=True, max_results=30)
+        quotes = search.quotes or []
+        etfs = [q for q in quotes if q.get("quoteType") == "ETF"]
+        # 4. Filtrer par nom : garder ceux dont le nom contient un mot du theme
+        mots_theme = [m.lower() for m in theme_en.split() if len(m) > 2]
+        pertinents = []
+        for q in etfs:
+            nom = (q.get("shortname") or q.get("longname") or "").lower()
+            if any(m in nom for m in mots_theme):
+                pertinents.append(q["symbol"])
+        if pertinents:
+            return theme_en, pertinents[:5], True
+        # Si aucun nom ne matche, on REFUSE (pas de substitution hasardeuse)
+        return None, None, False
+    except Exception:
+        pass
+
+    return None, None, False
