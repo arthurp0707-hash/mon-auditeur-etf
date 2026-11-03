@@ -24,15 +24,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "Pour déterminer le rendement annuelisé (CAGR) du **QQQ** sur une période de 5 ans, nous devons d'abord identifier la valeur d'entrée et la valeur de sortie sur cette durée, en supposant que vous avez "
+        "texte": "Pour déterminer le **rendement annuelisé (CAGR)** du indice **QQQ** sur une période de 5 ans, nous devons prendre en compte ses performances historiques réelles. Voici la méthode et les calculs basés "
       },
       {
         "correct": false,
-        "texte": "Pour calculer le **rendement annualisé** (ou taux de rendement interne) du indice NASDAQ-100, que suiv l'indice **QQQ** depuis sa création en janvier 2000 jusqu'à la fin du premier trimestre 2024 (dat"
+        "texte": "Pour déterminer le rendement annuité (CAGR - Compound Annual Growth Rate) du **QQQ** (et par extension de l'indice SPDR S&P 500, sur lequel il suit étroitement les performances), il faut analyser la p"
       },
       {
         "correct": false,
-        "texte": "Pour calculer le **rendement annuelisé** (ou retour moyen composé) du panier QQQ (Invesco QQQ Trust) sur une période de 5 ans, nous devons d'abord examiner les performances principales des indices Nas"
+        "texte": "Pour calculer le rendement annualisé (CAGR - *Compound Annual Growth Rate*) duETF **QQQ** sur une période de 5 ans, il faut se baser sur l'évolution de son prix d'ouverture du NASDAQ entre mai 2019 et"
       }
     ]
   },
@@ -61,15 +61,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "Pour déterminer le rendement annualisé (CAGR) de l'indice **SPDR S&P 500 ETF Trust (NYSEARCA:SPY)** sur une période de **5 ans**, il faut examiner les performances historiques du fond. Comme le SPY es"
+        "texte": "Pour calculer le rendement annuelisé (taux de croissance moyen par an) du **SPDR S&P 500 ETF Trust (SPY)** sur une période de 5 ans, nous devons regarder sa performance historique récente. La performa"
       },
       {
         "correct": false,
-        "texte": "Pour déterminer le rendement annuelisé (CAGR) de l'indice **SPDR S&P 500 ETF Trust (SPY)** sur une période de **5 ans**, il faut se baser sur les données de clôture hebdomadaires officielles, car cela"
+        "texte": "Pour calculer le **rendement annualisé** (ou taux d'intérêt composé) du SPDR S&P 500 ETF Trust (SPY) sur une période de 5 ans, il est nécessaire de prendre les données historiques réelles, car l'indic"
       },
       {
         "correct": false,
-        "texte": "Pour déterminer le rendement annuelisé (tenu compte des intérêts composés) du panier S&P 500 représenté par l'ETF **SPY** sur une période de 5 ans, nous devons examiner les performances récentes.\n\nLe "
+        "texte": "Pour calculer le rendement annuelisé (compounded annualized return) du **SPY** (ETF S&P 500 Trade) sur une période de **5 ans**, il est essentiel de déterminer les prix de début et de fin de cette pér"
       }
     ]
   },
@@ -98,15 +98,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "Il n'existe pas un chiffre unique et fixe, car la volatilité annuelle du **QQQ** (iShares Core NASDAQ-100 ETF) varie d'une année sur l'autre en fonction des conditions de marché.\n\nPour vous donner une"
+        "texte": "La volatilité annuellement ajustée (annuellement adjusted) du Nasdaq-100 (le sous-jacent principal de l'indice **QQQ**), mesurée sur un horizon moyen d'une décennie, s'élève généralement entre **28 % "
       },
       {
         "correct": false,
-        "texte": "La volatilité annuisée du **QQQ** (Invesco QQQ Trust) est une mesure qui varie selon la période considérée et le taux de rendement utilisé pour la calculer. Contrairement à l'indice S&P 500 ou au Nasd"
+        "texte": "La volatilité annuelisée (ou bêta) du **QQQ** (Invesco EQM ETF, qui suit le Nasdaq-100) n'est pas un chiffre unique et fixe ; elle varie constamment en fonction des conditions du marché. Cependant, vo"
       },
       {
         "correct": false,
-        "texte": "La volatilité annuelisée (standard deviation des rendements) du **QQQ** (ProShares Invesco Nasdaq 100 ETF) a tendance à être plus élevée que celle de l'ensemble des actions américaines (représenté par"
+        "texte": "Pour déterminer la volatilité annuelleisée actuelle du ETF **QQQ** (Invesco QQQ Trust, qui suit l'indice Nasdaq-100), il faut regarder sa mesure historique standard souvent utilisée par les analystes "
       }
     ]
   },
@@ -135,15 +135,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "Il n'existe pas une seule valeur unique pour la volatilité du S&P 500 (indice représenté par le ETF SPY), car celle-ci évolue quotidiennement selon les mouvements de marché. Elle varie également selon"
+        "texte": "La volatilité annualisée de l'indice **SPY** (S&P 500 ETF) n'est pas une valeur fixe, mais elle évolue constamment. C'est pourquoi les analystes et les plateformes financières ne la calculent générale"
       },
       {
         "correct": false,
-        "texte": "La volatilité annualisée (ou \"Annualized Volatility\") du **SPDR S&P 500 ETF Trust (SPY)** n'est pas une valeur fixe ; elle fluctue quotidiennement en fonction du mouvement des prix. C'est un indicateu"
+        "texte": "Il est important de faire une distinction fondamentale : le **SPY** (S&P 500 ETF) n'est pas un produit financier comme les actions individuelles, les obligations ou les forex qui possède intrinsèqueme"
       },
       {
         "correct": false,
-        "texte": "La volatilité annualisée (standard deviation des rendements) de l'**SPDR S&P 500 ETF Trust (SPY)** n'est pas une valeur fixe, mais fluctue constamment en fonction du marché. Elle dépend de la période "
+        "texte": "Il n'existe pas d'une seule valeur fixe pour la volatilité annualisée de l'indice **SPY** (S&P 500 ETF), car elle fluctue quotidiennement selon le marché, la tendance actuelle et les événements économ"
       }
     ]
   },
@@ -172,15 +172,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "Il est important de noter que, en tant qu'intelligence artificielle, je n'ai pas accès aux données boursières en temps réel. Le prix de clôture (ou la valeur finale) du **QQQ** (inversé) varie toutes "
+        "texte": "En tant qu'intelligence artificielle, je n'ai pas accès en temps réel aux marchés financiers pour vous donner le **dernier prix de clôture exact** d'instant T (les cours changent continuellement sur l"
       },
       {
         "correct": false,
-        "texte": "En tant qu'intelligence artificielle, je n'ai pas d'accès direct aux marchés financiers en temps réel. Le cours du **SPDR Semiconductor ETF (QQQ)** fluctue constamment en fonction des transactions bou"
+        "texte": "Le NASDAQ-100 ETF (symbol **QQQ**), géré par Invesco et coté sur le Nasdaq, n'est pas un actif dont il existe une liste fixe de \"derniers prix\" accessible sans connexion en temps réel aux marchés. Son"
       },
       {
         "correct": false,
-        "texte": "Comme je suis une intelligence artificielle, je n'ai pas accès aux données boursières en temps réel. Le indice **QQQ** (Invesco/QQQ Trust), qui suit principalement les 103 entreprises majeures de l'in"
+        "texte": "En tant qu'intelligence artificielle, je n'ai pas accès aux données de marché en temps réel. Les indices boursiers comme le **QQQ** (Nasdaq-100) fluctuent continuellement au cours des secondes.\n\nPour "
       }
     ]
   },
@@ -209,15 +209,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "Je n'ai pas accès aux flux boursiers en temps réel, car mon environnement ne se connecte pas directement aux plateformes financières pour obtenir les dernières nouvelles du jour. Le cours de clôture ("
+        "texte": "En tant qu'intelligence artificielle, j'ai une base de connaissances jusqu'en fin 2023 et je n'ai pas accès aux flux boursiers en temps réel pour voir l'actionnement du marché d'aujourd'hui. De plus, "
       },
       {
         "correct": false,
-        "texte": "En tant qu'intelligence artificielle, je n'ai pas accès aux données de marché en temps réel. Les cours des actions sont sujets à des fluctuations constantes et la clôture exacte de **SPY** (iShares Co"
+        "texte": "En tant qu'intelligence artificielle, je n'ai pas accès en temps réel aux flux de marché de la bourse à l'instant T. Le cours de clôture (last price) du index **SPY** change constamment selon le momen"
       },
       {
         "correct": false,
-        "texte": "En tant qu'intelligence artificielle, je n'ai pas d'accès aux flux de données boursières en temps réel. Les prix du marché des actions, y compris ceux de l'indice **SPY** (Spdr S&P 500 ETF Trust), son"
+        "texte": "En tant que modèle d'intelligence artificielle, j'ai accès à une base de données statique qui ne se met pas à jour en temps réel. Par conséquent, je **ne peux pas vous fournir le prix de clôture exact"
       }
     ]
   },
@@ -246,15 +246,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "Pour répondre à votre question, il faut distinguer deux choses : l'augmentation de la valeur nominale du capital (sans intérêts composés) et le rendement moyen annuel composé (qui reflète la réalité d"
+        "texte": "Pour déterminer si le QQQ a réalisé une hausse de +45 % sur 5 ans, il faut examiner son performance exacte sur différentes périodes récentes (2019–2023 ou 2018–2022). Selon les données historiques de "
       },
       {
         "correct": false,
-        "texte": "Non, la **QQQ n'a pas atteint un rendement de +45 % sur une période de 5 ans**. Si l'on prend une année typique (par exemple 2018-2023 ou 2019-2024), le gain total s'élève généralement à environ **+20"
+        "texte": "Pour répondre à votre question concernant les performances de la **Nasdaq-100 ETF (QQQ)** sur un horizon de 5 ans, il faut examiner les données historiques réelles plutôt que d'hypothéser une progress"
       },
       {
         "correct": false,
-        "texte": "Oui, leETF **QQQ** (qui suit l'indice NASDAQ-100) a effectivement réalisé un rendement total supérieur à **45 % sur une période de 5 ans**, bien que la performance exacte dépende de la date précise au"
+        "texte": "Non, **QQQ n'a pas fait +45 % en moyenne par an** au cours des cinq dernières années (de fin 2019 à fin 2024). Sa performance récente est exceptionnelle, mais elle ne suffit pas encore à atteindre ce "
       }
     ]
   },
@@ -283,15 +283,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "Non, la volatilité de l'indice **SPY** (S&P 500) n'est pas constante à **5 %**. Cette valeur peut varier considérablement en fonction du moment choisi dans le temps et de la méthode de calcul utilisée"
+        "texte": "Non, la volatilité d'indice **SPY** (S&P 500 ETF Trade) n'est pas fixée à 5 %, mais elle peut varier selon le moment et le marché. La mesure la plus couramment utilisée est la **volatilité historique "
       },
       {
         "correct": false,
-        "texte": "**Non, la volatilité de l'indice S&P 500 (SPY) n'est pas fixée à 5 %**, et ce nombre varie constamment dans le temps. Il s'agit d'une mesure statistique qui reflète l'évolution des prix sur différente"
+        "texte": "Non, la volatilité de l'indice **SPY** (S&P 500 ETF Trade) n'est généralement **pas de 5 %**. Cette affirmation fait souvent référence à la moyenne historique du rendement brut des actions américaines"
       },
       {
         "correct": false,
-        "texte": "Il n'y a pas un chiffre unique et fixe pour la volatilité de l'indice **SPY** (S&P 500 ETF), car celle-ci varie en fonction du marché, de la période considérée et de la méthode de calcul utilisée. La "
+        "texte": "La réponse courte est **non, pas de manière constante**. Dire que la volatilité du SPY (S&P 500 ETF) est *toujours* ou *en général* de 5 % est une approximation erronée qui ne reflète pas la réalité d"
       }
     ]
   },
@@ -320,15 +320,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "Non, **QQQ n'est pas** techniquement l'ETF le plus « diversifié » au sens large (c'est-à-dire couvrant tous les secteurs ou toutes les catégories d'actifs), mais c'est souvent considéré comme l'un des"
+        "texte": "Non, **SPDR QQQ Trust (Ticker : QQQ)** n'est pas considéré comme l'ETF « le plus diversifié » au sens strict du mot, et ce pour plusieurs raisons fondamentales.\n\nEn réalité, QQQ est un produit très sp"
       },
       {
         "correct": false,
-        "texte": "Non, **QQQ n'est pas** l'ETF le plus diversifié sur le marché. Bien qu'il soit extrêmement large pour un ETF axé sur les actions des États-Unis (via l'indice Nasdaq-100), sa structure est intrinsèquem"
+        "texte": "Non, **QQQ n'est pas** l'ETF le plus diversifié du marché. Bien qu'il soit souvent perçu comme une solution « tout-en-un » pour le portefeuille, sa composition repose très fortement sur un seul secteu"
       },
       {
         "correct": false,
-        "texte": "Non, **le QQQ (Invesco QQQ Trust)** n'est pas nécessairement considéré comme *l'*ETF le plus diversifié sur le marché, bien qu'il soit extrêmement bien équilibré dans sa structure spécifique. Pour rép"
+        "texte": "Non, **QQQ n'est pas l'ETF le plus diversifié** sur le marché. Il est souvent considéré comme un bon compromis entre la croissance et la réduction des risques, mais il reste une concentration très for"
       }
     ]
   },
@@ -357,15 +357,15 @@
     "B": [
       {
         "correct": false,
-        "texte": "La performance du SPDR Bloomberg US Equal Weight 500 ETF (typon correcte : **SPTL** ou son équivalent, car il n'existe pas de produit coté aux États-Unis nommé exactement \"SPY bat-il le S&P 500 sur 5 "
+        "texte": "Pour répondre à votre question, nous devons d'abord clarifier une distinction importante : le **S&P 500** est l'instrument sous-jacent lui-même (l'indice des 500 plus grandes entreprises américaines),"
       },
       {
         "correct": false,
-        "texte": "Oui, sur un horizon de **5 ans**, l'indice **SPDR MSCI ACWI U.S. Investable Equity Index ETF (BAT)** tend généralement à **performer mieux** ou en valeur relative que le **S&P 500**, bien que cette di"
+        "texte": "Oui, **SPY** (SPDR S&P 500 ETF Trust) a effectivement battu la plupart des autres fonds d'industrialisation de la catégorie sur les **5 dernières années**, mais il est important de nuancer ce résultat"
       },
       {
         "correct": false,
-        "texte": "Pour répondre directement : **Oui, l'indice SPDR S&P 500 (le ticker `SPY`) a généralement été supérieur au rendement en capital nominal des obligations à terme moyen US (souvent la référence implicite"
+        "texte": "La performance de l'indice **S&P 500** (référencé par des ETF comme VOO, IVV ou FXI) par rapport à celui du secteur technologique et de la communication, souvent associé au nom \"SPY\" (qui est en réali"
       }
     ]
   }

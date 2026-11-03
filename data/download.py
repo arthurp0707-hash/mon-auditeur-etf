@@ -32,8 +32,18 @@ def download_one(ticker: str, period: str = DEFAULT_PERIOD,
         return out
 
     print(f"[download] {ticker} ({period}, {interval}) ...")
-    df = yf.download(ticker, period=period, interval=interval,
-                     auto_adjust=True, progress=False)
+    import time
+    df = None
+    for essai in range(3):
+        try:
+            df = yf.download(ticker, period=period, interval=interval,
+                             auto_adjust=True, progress=False)
+            if df is not None and not df.empty:
+                break
+        except Exception:
+            pass
+        time.sleep(2)  # pause entre les essais
+
     if df is None or df.empty:
         raise RuntimeError(f"Aucune donnée renvoyée pour {ticker}")
 
